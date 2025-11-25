@@ -2,7 +2,8 @@ import streamlit as st
 from groq import Groq
 
 # CONFIG 
-client = Groq(api_key=st.secrets["Api_key"])
+client = Groq(api_key=st.secrets["GROQ_API_KEY"])
+
 st.set_page_config(page_title="AI Chatbot", page_icon="🤖", layout="wide")
 
 #STYLES
@@ -138,3 +139,4 @@ user_input = st.chat_input("Message the bot…")
 if user_input:
     bot = ask_groq(user_input, st.session_state.history)
     st.session_state.history.append({"user": user_input, "bot": bot})
+
