@@ -1,44 +1,26 @@
 import streamlit as st
 from groq import Groq
 
-# --- 1. CONFIGURATION (Must be first) ---
+# --- 1. CONFIGURATION ---
 st.set_page_config(
-    page_title="Gemini-Pro Clone",
-    page_icon="✨",
-    layout="wide",  # This makes the input bar longer
-    initial_sidebar_state="collapsed"
+    page_title="Professional AI Assistant",
+    page_icon="🤖",
+    layout="centered", # 'centered' focuses the chat and looks better on standard screens
+    initial_sidebar_state="auto"
 )
 
-# --- 2. CSS STYLING (Gemini Dark Theme) ---
+# --- 2. PROFESSIONAL STYLING ---
+# This CSS ensures the input box looks clean and removes any default red borders
 st.markdown("""
 <style>
-    /* Gemini Dark Background */
-    .stApp {
-        background-color: #131314;
-        color: #E3E3E3;
-    }
-
-    /* Sidebar Styling */
-    section[data-testid="stSidebar"] {
-        background-color: #1E1F20;
-    }
-
-    /* Input Bar Styling - Make it blend in */
-    .stChatInput textarea {
-        background-color: #1E1F20;
-        color: white;
-        border: 1px solid #444746;
+    /* Force the input box focus color to a professional blue instead of default red */
+    .stChatInput textarea:focus {
+        border-color: #4A90E2 !important;
+        box-shadow: 0 0 0 1px #4A90E2 !important;
     }
     
-    /* Remove the top padding to make it look like an app */
-    .block-container {
-        padding-top: 2rem;
-    }
-    
-    /* Hide the default hamburger menu */
-    #MainMenu {visibility: hidden;}
+    /* Hide the default 'Made with Streamlit' footer for a cleaner look */
     footer {visibility: hidden;}
-    
 </style>
 """, unsafe_allow_html=True)
 
@@ -46,7 +28,7 @@ st.markdown("""
 try:
     client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 except Exception as e:
-    st.error(f"⚠️ API Key Error: Please check your secrets.toml file.")
+    st.error(f"⚠️ Configuration Error: Please check your API key.")
     st.stop()
 
 # --- 4. STATE MANAGEMENT ---
@@ -55,50 +37,43 @@ if "messages" not in st.session_state:
 
 # --- 5. SIDEBAR ---
 with st.sidebar:
-    st.title("✨ Settings")
+    st.header("Control Panel")
     
-    # Simple clear button (No red color)
-    if st.button("New Chat", use_container_width=True):
+    # A standard, professional button style
+    if st.button("🗑️ Reset Conversation", type="primary", use_container_width=True):
         st.session_state.messages = []
         st.rerun()
+        
+    st.markdown("---")
+    st.markdown("**Model:** `Llama-3.1-8b-instant`")
+    st.caption("A high-speed model optimized for chat.")
 
-    st.divider()
-    st.caption("Model: Llama-3.1-8b-instant")
+# --- 6. MAIN INTERFACE ---
 
-# --- 6. MAIN CHAT AREA ---
-
-# Header (Centered like Gemini)
-if len(st.session_state.messages) == 0:
-    st.markdown("""
-    <div style='text-align: center; margin-top: 100px;'>
-        <h1 style='background: linear-gradient(to right, #4285F4, #9B72CB); -webkit-background-clip: text; -webkit-text-fill-color: transparent;'>Hello, Human.</h1>
-        <h3 style='color: #888;'>How can I help you today?</h3>
-    </div>
-    """, unsafe_allow_html=True)
+# Professional Header
+st.title("AI Assistant")
+st.markdown("Welcome. How can I assist you with your tasks today?")
 
 # Display Chat History
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# --- 7. INPUT & LOGIC (The Fix) ---
-if prompt := st.chat_input("Message Gemini..."):
+# --- 7. CHAT LOGIC ---
+if prompt := st.chat_input("Type your message here..."):
     
-    # Show user message
+    # 1. Display User Message
     with st.chat_message("user"):
         st.markdown(prompt)
-    
-    # Save user message
     st.session_state.messages.append({"role": "user", "content": prompt})
 
-    # Generate Response
+    # 2. Generate Assistant Response
     with st.chat_message("assistant"):
-        # Create a container for the result
         response_placeholder = st.empty()
         
-        # Build context
+        # Build context for the AI
         messages_for_api = [
-            {"role": "system", "content": "You are a helpful, smart AI assistant. Be concise and friendly."}
+            {"role": "system", "content": "You are a helpful and professional AI assistant."}
         ] + st.session_state.messages
 
         try:
@@ -109,19 +84,18 @@ if prompt := st.chat_input("Message Gemini..."):
                 stream=True,
             )
             
-            # --- THE CRITICAL FIX --- 
-            # We must iterate the stream and extract ONLY the text content
-            def stream_generator():
+            # Helper function to extract text from the stream safely
+            def stream_parser(stream):
                 for chunk in stream:
                     content = chunk.choices[0].delta.content
                     if content:
                         yield content
 
-            # Write the clean text stream
-            full_response = st.write_stream(stream_generator())
+            # Write the stream to the UI
+            full_response = st.write_stream(stream_parser(stream))
             
-            # Save assistant message
+            # Save the full response to history
             st.session_state.messages.append({"role": "assistant", "content": full_response})
 
         except Exception as e:
-            st.error(f"Error: {str(e)}")
+            st.error(f"An error occurred: {str(e)}")
