@@ -5,65 +5,65 @@ import base64
 
 # --- 1. CONFIGURATION ---
 st.set_page_config(
-    page_title="AI ChatBot",
-    page_icon="🫶🏻",
+    page_title="Professional AI",
+    page_icon="🧠",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# --- 2. THE "THINKLET" UI STYLING (Yellow/White Theme) ---
+# --- 2. PROFESSIONAL ADAPTIVE STYLING ---
+# This CSS uses transparent backgrounds so it matches ANY Streamlit theme automatically.
 st.markdown("""
 <style>
-    /* Main Background */
+    /* 1. Main Background - Transparent to let Streamlit theme show */
     .stApp {
-        background-color: #F8F9FA;
-        color: #212529;
+        background: transparent;
     }
     
-    /* Sidebar Styling */
+    /* 2. Sidebar - Subtle, Professional Border */
     section[data-testid="stSidebar"] {
-        background-color: #FFFFFF;
-        border-right: 1px solid #E9ECEF;
+        border-right: 1px solid rgba(255, 255, 255, 0.1);
     }
     
-    /* User Message - The Yellow Bubble */
-    div[data-testid="stChatMessage"] {
-        padding: 1rem;
-        border-radius: 15px;
-        margin-bottom: 1rem;
-    }
+    /* 3. User Chat Message - Professional Blue Accent */
     div[data-testid="stChatMessage"][data-testid="user"] {
-        background-color: #FFD54F;
-        color: black;
-    }
-    
-    /* Assistant Message - White Card style */
-    div[data-testid="stChatMessage"][data-testid="assistant"] {
-        background-color: #FFFFFF;
-        border: 1px solid #E0E0E0;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-    }
-    
-    /* Input Box Styling */
-    .stChatInput textarea {
-        background-color: #FFFFFF;
-        color: #333;
-        border: 2px solid #E0E0E0;
+        background-color: rgba(74, 144, 226, 0.1); /* Subtle Blue Tint */
+        border: 1px solid rgba(74, 144, 226, 0.2);
         border-radius: 12px;
     }
     
-    /* Buttons */
+    /* 4. Assistant Chat Message - Clean Neutral */
+    div[data-testid="stChatMessage"][data-testid="assistant"] {
+        background-color: rgba(255, 255, 255, 0.05); /* Subtle White/Grey Tint */
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
+    }
+    
+    /* 5. Input Box - Matches Theme */
+    .stChatInput textarea {
+        border-radius: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    
+    /* 6. Buttons - Professional & Minimal */
     .stButton button {
-        background-color: #FFD54F;
-        color: black;
         border-radius: 8px;
-        border: none;
-        font-weight: 600;
+        font-weight: 500;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        transition: all 0.2s;
+    }
+    .stButton button:hover {
+        border-color: #4A90E2; /* Blue hover glow */
+        color: #4A90E2;
+    }
+    
+    /* Remove default top padding */
+    .block-container {
+        padding-top: 2rem;
     }
     
     /* Hide Footer */
     footer {visibility: hidden;}
-    
 </style>
 """, unsafe_allow_html=True)
 
@@ -77,35 +77,40 @@ def get_base64_image(file_obj):
 try:
     client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 except:
-    st.error("⚠️ GROQ_API_KEY missing in secrets.toml")
+    st.error("⚠️ GROQ_API_KEY missing. Please check your secrets.toml.")
     st.stop()
 
 # --- 5. SIDEBAR ---
 with st.sidebar:
-    st.title("🫶🏻 ChatBot")
-    st.markdown("### 📂 Workspaces")
-    st.button("📝 UX Writing Guide", use_container_width=True)
-    st.button("📊 Q3 Marketing Plan", use_container_width=True)
+    st.title("🧠 AI Workspace")
+    
+    st.caption("PROJECTS")
+    st.button("📄 Document Analysis", use_container_width=True)
+    st.button("📊 Market Research", use_container_width=True)
+    st.button("💻 Code Assistant", use_container_width=True)
     
     st.markdown("---")
-    st.markdown("### ⚙️ Controls")
-    # Removed Voice Toggle to prevent errors
-    typing_speed = st.slider("Typing Speed (ms)", 5, 50, 20)
+    st.caption("SETTINGS")
     
-    if st.button("🗑️ Clear Chat", use_container_width=True):
+    # Speed Control
+    typing_speed = st.slider("Response Speed (ms)", 5, 50, 20)
+    
+    # Clear Chat Button (Primary color used for emphasis)
+    if st.button("🗑️ Reset Conversation", type="primary", use_container_width=True):
         st.session_state.messages = []
         st.rerun()
 
-# --- 6. MAIN CHAT LOGIC ---
+# --- 6. MAIN CHAT INTERFACE ---
 
+# Initialize History
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# Title Area
-st.markdown("## 🤖 AI Companion")
-st.caption("Context aware AI Assistant")
+# Header
+st.markdown("### 👋 Welcome Back")
+st.markdown("I am your professional AI assistant. Attach images or type below to begin.")
 
-# Display History
+# Display Chat History
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         if "image_url" in msg:
@@ -113,26 +118,30 @@ for msg in st.session_state.messages:
         st.markdown(msg["content"])
 
 # --- INPUT AREA ---
-# Image Uploader
-with st.expander("📷 Upload Image (Optional)"):
-    uploaded_file = st.file_uploader("Attach an image", type=['jpg', 'png'])
+
+# Image Uploader (Clean expander)
+with st.expander("📎 Attach Image (Optional)"):
+    uploaded_file = st.file_uploader("Upload an image for analysis", type=['jpg', 'png', 'jpeg'])
 
 # Chat Input
-if prompt := st.chat_input("Type your message..."):
+if prompt := st.chat_input("Type your message here..."):
     
     # 1. Handle User Input
     user_content = [{"type": "text", "text": prompt}]
     
+    # Prepare visual display
     if uploaded_file:
         base64_image = get_base64_image(uploaded_file)
         user_content.append({
             "type": "image_url",
             "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}
         })
-        st.session_state.messages.append({"role": "user", "content": prompt + " [Image Uploaded]"})
+        st.session_state.messages.append({"role": "user", "content": prompt + " [Image Attached]"})
+        
+        # Immediate Feedback
         with st.chat_message("user"):
             st.markdown(prompt)
-            st.image(uploaded_file, width=200)
+            st.image(uploaded_file, width=250) # Smaller, cleaner preview
     else:
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
@@ -146,11 +155,10 @@ if prompt := st.chat_input("Type your message..."):
         # Select Model (Vision or Text)
         model_choice = "llama-3.2-11b-vision-preview" if uploaded_file else "llama-3.1-8b-instant"
         
-        # Prepare Messages for API
+        # Build API Messages (Text History Only to save tokens/errors)
         api_messages = [
-            {"role": "system", "content": "You are a helpful AI assistant."}
+            {"role": "system", "content": "You are a precise, professional AI assistant."}
         ]
-        # Only add text history to avoid token errors with images
         for m in st.session_state.messages[-5:]:
             if "image_url" not in m:
                 api_messages.append({"role": m["role"], "content": m["content"]})
@@ -164,13 +172,13 @@ if prompt := st.chat_input("Type your message..."):
                 stream=True
             )
             
-            # 3. Stream the Response (Fixing the JSON bug)
+            # Streaming Loop
             for chunk in stream:
                 content = chunk.choices[0].delta.content
                 if content:
                     full_response += content
                     response_placeholder.markdown(full_response + "▌")
-                    time.sleep(typing_speed / 1000) # Typing effect
+                    time.sleep(typing_speed / 1000)
             
             response_placeholder.markdown(full_response)
             st.session_state.messages.append({"role": "assistant", "content": full_response})
