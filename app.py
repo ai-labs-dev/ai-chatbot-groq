@@ -11,58 +11,40 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- 2. CSS STYLING (Adaptive & Professional) ---
+# --- 2. CSS STYLING ---
 st.markdown("""
 <style>
-    /* Transparent Background for Theme Compatibility */
-    .stApp {
-        background: transparent;
-    }
+    /* Transparent Background */
+    .stApp { background: transparent; }
     
-    /* Sidebar Border */
-    section[data-testid="stSidebar"] {
-        border-right: 1px solid rgba(255, 255, 255, 0.1);
-    }
+    /* Sidebar */
+    section[data-testid="stSidebar"] { border-right: 1px solid rgba(255, 255, 255, 0.1); }
     
-    /* User Message - Blue Tint */
+    /* User Message */
     div[data-testid="stChatMessage"][data-testid="user"] {
         background-color: rgba(74, 144, 226, 0.1);
         border: 1px solid rgba(74, 144, 226, 0.2);
         border-radius: 12px;
     }
     
-    /* Assistant Message - Neutral Tint */
+    /* Assistant Message */
     div[data-testid="stChatMessage"][data-testid="assistant"] {
         background-color: rgba(255, 255, 255, 0.05);
         border: 1px solid rgba(255, 255, 255, 0.1);
         border-radius: 12px;
     }
     
-    /* Thinking Animation Style */
+    /* Thinking Animation */
     .thinking {
         font-style: italic;
         color: #888;
+        font-size: 0.9em;
         animation: pulse 1.5s infinite;
     }
-    
-    @keyframes pulse {
-        0% { opacity: 0.5; }
-        50% { opacity: 1; }
-        100% { opacity: 0.5; }
-    }
+    @keyframes pulse { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
     
     /* Input Box */
-    .stChatInput textarea {
-        border-radius: 10px;
-        border: 1px solid rgba(255, 255, 255, 0.2);
-    }
-    
-    /* Buttons */
-    .stButton button {
-        border-radius: 8px;
-        font-weight: 500;
-        transition: all 0.2s;
-    }
+    .stChatInput textarea { border-radius: 10px; border: 1px solid rgba(255, 255, 255, 0.2); }
     
     /* Hide Footer */
     footer {visibility: hidden;}
@@ -83,29 +65,31 @@ except:
     st.error("⚠️ GROQ_API_KEY missing. Please check your secrets.toml.")
     st.stop()
 
-# --- 5. SIDEBAR CONTROLS ---
+# --- 5. SIDEBAR ---
 with st.sidebar:
     st.title("🧠 AI Workspace")
     
     st.caption("MODEL SETTINGS")
+    
+    # TEXT MODEL
     text_model = st.selectbox(
-        "Text Model",
-        ["llama-3.1-8b-instant", "llama-3.3-70b-versatile", "mixtral-8x7b-32768"],
+        "Chat Model (Text)",
+        ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768"],
         index=0
     )
     
+    # VISION MODEL
     vision_model = st.selectbox(
-        "Vision Model",
-        ["llama-3.2-11b-vision-preview", "llama-3.2-90b-vision-preview"],
-        index=1
+        "Vision Model (Images)",
+        ["llama-3.2-90b-vision-preview", "llama-3.2-11b-vision-preview"],
+        index=0,
+        help="90b is usually smarter but might be slower. 11b is faster."
     )
     
     st.markdown("---")
-    st.caption("INTERFACE")
-    # Set default to 45ms as requested
     typing_speed = st.slider("Response Speed (ms)", 10, 100, 45)
     
-    if st.button("🗑️ Reset Conversation", type="primary", use_container_width=True):
+    if st.button("🗑️ Reset Chat", type="primary", use_container_width=True):
         st.session_state.messages = []
         st.rerun()
 
@@ -116,80 +100,94 @@ if "messages" not in st.session_state:
 
 # Header
 st.markdown("### 👋 Intelligent Assistant")
-st.markdown(f"Using **{vision_model if 'messages' in st.session_state and len(st.session_state.messages) > 0 and 'image_url' in str(st.session_state.messages) else text_model}** logic.")
 
 # Display History
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         if "image_url" in msg:
-            st.image(msg["image_url"])
+            st.image(msg["image_url"], width=250)
         st.markdown(msg["content"])
 
 # --- INPUT AREA ---
-with st.expander("📎 Attach Image"):
-    uploaded_file = st.file_uploader("Analyze an image", type=['jpg', 'png', 'jpeg'])
+with st.expander("📎 Attach Image (Vision Beta)"):
+    uploaded_file = st.file_uploader("Upload image", type=['jpg', 'png', 'jpeg'])
 
 if prompt := st.chat_input("Type your message..."):
     
     # 1. Handle User Input
     user_content = [{"type": "text", "text": prompt}]
+    has_image = False
     
     if uploaded_file:
-        base64_image = get_base64_image(uploaded_file)
-        user_content.append({
-            "type": "image_url",
-            "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}
-        })
-        st.session_state.messages.append({"role": "user", "content": prompt + " [Image Attached]"})
-        with st.chat_message("user"):
-            st.markdown(prompt)
-            st.image(uploaded_file, width=250)
+        try:
+            base64_image = get_base64_image(uploaded_file)
+            user_content.append({
+                "type": "image_url",
+                "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}
+            })
+            has_image = True
+            
+            # Show user message immediately
+            with st.chat_message("user"):
+                st.markdown(prompt)
+                st.image(uploaded_file, width=250)
+                
+            st.session_state.messages.append({"role": "user", "content": prompt + " [Image]", "image_url": uploaded_file})
+            
+        except Exception as e:
+            st.error(f"Failed to process image: {e}")
+            st.stop()
     else:
-        st.session_state.messages.append({"role": "user", "content": prompt})
+        # Show text message
         with st.chat_message("user"):
             st.markdown(prompt)
+        st.session_state.messages.append({"role": "user", "content": prompt})
 
     # 2. Generate Response
     with st.chat_message("assistant"):
-        # A. Thinking Animation
-        response_placeholder = st.empty()
-        response_placeholder.markdown("<span class='thinking'>Thinking...</span>", unsafe_allow_html=True)
+        placeholder = st.empty()
+        placeholder.markdown("<span class='thinking'>Thinking...</span>", unsafe_allow_html=True)
+        time.sleep(0.5) # Cosmetic delay
         
-        # Artificial delay to make the 'Thinking' visible and feel natural (optional)
-        time.sleep(0.5) 
+        # Decide Model
+        active_model = vision_model if has_image else text_model
         
-        full_response = ""
-        active_model = vision_model if uploaded_file else text_model
-        
-        # Build API Messages
-        api_messages = [
-            {"role": "system", "content": "You are a helpful, professional AI assistant."}
-        ]
-        for m in st.session_state.messages[-5:]:
+        # Build Context (Text Only for history to avoid format errors)
+        api_messages = [{"role": "system", "content": "You are a helpful AI."}]
+        for m in st.session_state.messages[-6:]:
             if "image_url" not in m:
                 api_messages.append({"role": m["role"], "content": m["content"]})
         
-        api_messages.append({"role": "user", "content": user_content if uploaded_file else prompt})
+        # Add Current Request
+        api_messages.append({"role": "user", "content": user_content})
 
         try:
+            # API CALL
             stream = client.chat.completions.create(
                 model=active_model,
                 messages=api_messages,
-                stream=True
+                stream=True,
+                temperature=0.7
             )
             
-            # B. Stream Parsing with Speed Control
+            full_response = ""
             for chunk in stream:
                 content = chunk.choices[0].delta.content
                 if content:
                     full_response += content
-                    # Overwrite the 'Thinking...' with the actual text
-                    response_placeholder.markdown(full_response + "▌")
+                    placeholder.markdown(full_response + "▌")
                     time.sleep(typing_speed / 1000)
             
-            response_placeholder.markdown(full_response)
+            placeholder.markdown(full_response)
             st.session_state.messages.append({"role": "assistant", "content": full_response})
 
         except Exception as e:
-            response_placeholder.empty() # Clear thinking animation if error
-            st.error(f"❌ API Error: {str(e)}")
+            error_msg = str(e)
+            placeholder.empty()
+            if "404" in error_msg:
+                st.error(f"❌ **Model Error:** Groq cannot find model `{active_model}`. It might be down for maintenance.")
+                st.info("👉 **Try this:** Go to the Sidebar and switch the 'Vision Model' to the other option.")
+            elif "400" in error_msg:
+                st.error("❌ **Image Error:** The image format was rejected by Groq. Try a smaller JPG or PNG.")
+            else:
+                st.error(f"❌ **API Error:** {error_msg}")
