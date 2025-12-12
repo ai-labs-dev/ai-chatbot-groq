@@ -1,142 +1,104 @@
 import streamlit as st
 from groq import Groq
 
-# CONFIG 
-client = Groq(api_key=st.secrets["GROQ_API_KEY"])
+# --- CONFIGURATION ---
+st.set_page_config(
+    page_title="AI Assistant",
+    page_icon="🤖",
+    layout="centered"
+)
 
-st.set_page_config(page_title="AI Chatbot", page_icon="🤖", layout="wide")
+# Initialize Groq Client
+try:
+    client = Groq(api_key=st.secrets["GROQ_API_KEY"])
+except KeyError:
+    st.error("🚨 GROQ_API_KEY not found in secrets.toml")
+    st.stop()
 
-#STYLES
+# --- CUSTOM STYLES (Professional Dark Mode) ---
 st.markdown("""
 <style>
-
-body {
-    background-color: #0f0f10;
-}
-
-h2 {
-    color: #f2f2f2;
-    font-weight: 600;
-}
-
-.chat-wrapper {
-    max-width: 900px;
-    margin: auto;
-    padding-top: 20px;
-}
-
-.chat-box {
-    background: rgba(255,255,255,0.02);
-    border: 1px solid rgba(255,255,255,0.05);
-    border-radius: 14px;
-    padding: 18px;
-    height: 70vh;
-    overflow-y: auto;
-    backdrop-filter: blur(8px);
-}
-
-.user-msg {
-    background: #006ee6;
-    color: white;
-    padding: 12px 16px;
-    border-radius: 14px;
-    max-width: 75%;
-    margin-left: auto;
-    margin-bottom: 12px;
-    font-size: 16px;
-}
-
-.bot-msg {
-    background: #eaeaea;
-    color: #111;
-    padding: 12px 16px;
-    border-radius: 14px;
-    max-width: 75%;
-    margin-right: auto;
-    margin-bottom: 12px;
-    font-size: 16px;
-}
-
-.input-area {
-    max-width: 900px;
-    margin: 22px auto;
-}
-
+    /* Main Background */
+    .stApp {
+        background-color: #0e1117;
+    }
+    
+    /* Input Box Styling */
+    .stChatInput {
+        position: fixed;
+        bottom: 20px;
+    }
+    
+    /* Header Adjustment */
+    header {visibility: hidden;}
+    
+    /* Clean up top padding */
+    .block-container {
+        padding-top: 2rem;
+        padding-bottom: 5rem;
+    }
 </style>
 """, unsafe_allow_html=True)
 
-#STATE 
-if "history" not in st.session_state:
-    st.session_state.history = []
+# --- STATE MANAGEMENT ---
+if "messages" not in st.session_state:
+    st.session_state.messages = []
 
+# --- SIDEBAR (Optional Controls) ---
+with st.sidebar:
+    st.title("⚙️ Settings")
+    st.markdown("Model: `llama-3.1-8b-instant`")
+    
+    # Add a clear chat button
+    if st.button("🗑️ Clear Conversation", type="primary"):
+        st.session_state.messages = []
+        st.rerun()
 
-#  MODEL LOGIC 
-def ask_groq(query, history):
-    messages = [{"role": "system", "content": "You are a helpful, friendly AI assistant."}]
+# --- MAIN CHAT INTERFACE ---
 
-    for h in history[-6:]:
-        messages.append({"role": "user", "content": h["user"]})
-        messages.append({"role": "assistant", "content": h["bot"]})
+st.title("🤖 AI Assistant")
+st.caption("Powered by Groq & Llama 3")
 
-    messages.append({"role": "user", "content": query})
+# 1. Display existing chat history
+# This loops through the history and displays it cleanly
+for message in st.session_state.messages:
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
 
-    response = client.chat.completions.create(
-        model="llama-3.1-8b-instant",
-        messages=messages
-    )
-    return response.choices[0].message.content
+# 2. Handle User Input
+if prompt := st.chat_input("Type your message here..."):
+    
+    # Display user message immediately
+    with st.chat_message("user"):
+        st.markdown(prompt)
+    
+    # Add user message to history
+    st.session_state.messages.append({"role": "user", "content": prompt})
 
+    # 3. Generate and Display Assistant Response
+    with st.chat_message("assistant"):
+        
+        # Prepare context for the AI
+        chat_history = [
+            {"role": "system", "content": "You are a helpful, professional AI assistant."}
+        ]
+        # Append the last few messages for context (context window management)
+        for msg in st.session_state.messages[-10:]:
+            chat_history.append(msg)
 
-#FRONT-END
-st.markdown("<h2 style='text-align:center;'>🤖 AI Chatbot</h2>", unsafe_allow_html=True)
-
-st.markdown("<div class='chat-wrapper'>", unsafe_allow_html=True)
-
-
-#CHAT DISPLAY (FIXED)
-
-# Only show the chat box if there are messages
-if len(st.session_state.history) > 0:
-
-    st.markdown("<div class='chat-wrapper'>", unsafe_allow_html=True)
-    st.markdown("<div class='chat-box'>", unsafe_allow_html=True)
-
-# CHAT AREA 
-
-if len(st.session_state.history) == 0:
-    # Show a clean chatbot intro text instead of empty box
-    st.markdown("""
-        <div style='
-            text-align:center; 
-            margin-top:120px;
-            color:#9fa3a8;
-            font-size:20px;
-            line-height:1.6;
-        '>
-            👋 <b>Welcome to your AI Chatbot</b><br>
-            Ask anything to get started.<br>
-            This assistant can answer questions, explain concepts, help with code,<br>
-            and much more — just type below and press Enter.
-        </div>
-    """, unsafe_allow_html=True)
-else:
-    # Show chat messages normally
-    st.markdown("<div class='chat-wrapper'>", unsafe_allow_html=True)
-    st.markdown("<div class='chat-box'>", unsafe_allow_html=True)
-
-    for chat in st.session_state.history:
-        st.markdown(f"<div class='user-msg'>{chat['user']}</div>", unsafe_allow_html=True)
-        st.markdown(f"<div class='bot-msg'>{chat['bot']}</div>", unsafe_allow_html=True)
-
-    st.markdown("</div></div>", unsafe_allow_html=True)
-
-
-
-
-# Input box (Enter to send)
-user_input = st.chat_input("Message the bot…")
-
-if user_input:
-    bot = ask_groq(user_input, st.session_state.history)
-    st.session_state.history.append({"user": user_input, "bot": bot})
-
+        try:
+            # Create a placeholder for the streaming text
+            stream = client.chat.completions.create(
+                model="llama-3.1-8b-instant",
+                messages=chat_history,
+                stream=True, # Enable streaming for "typing" effect
+            )
+            
+            # Streamlit's magic command to write stream directly
+            response = st.write_stream(stream)
+            
+            # Add assistant response to history
+            st.session_state.messages.append({"role": "assistant", "content": response})
+            
+        except Exception as e:
+            st.error(f"Error generating response: {e}")
