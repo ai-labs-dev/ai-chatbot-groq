@@ -11,59 +11,62 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- 2. PROFESSIONAL ADAPTIVE STYLING ---
-# This CSS uses transparent backgrounds so it matches ANY Streamlit theme automatically.
+# --- 2. CSS STYLING (Adaptive & Professional) ---
 st.markdown("""
 <style>
-    /* 1. Main Background - Transparent to let Streamlit theme show */
+    /* Transparent Background for Theme Compatibility */
     .stApp {
         background: transparent;
     }
     
-    /* 2. Sidebar - Subtle, Professional Border */
+    /* Sidebar Border */
     section[data-testid="stSidebar"] {
         border-right: 1px solid rgba(255, 255, 255, 0.1);
     }
     
-    /* 3. User Chat Message - Professional Blue Accent */
+    /* User Message - Blue Tint */
     div[data-testid="stChatMessage"][data-testid="user"] {
-        background-color: rgba(74, 144, 226, 0.1); /* Subtle Blue Tint */
+        background-color: rgba(74, 144, 226, 0.1);
         border: 1px solid rgba(74, 144, 226, 0.2);
         border-radius: 12px;
     }
     
-    /* 4. Assistant Chat Message - Clean Neutral */
+    /* Assistant Message - Neutral Tint */
     div[data-testid="stChatMessage"][data-testid="assistant"] {
-        background-color: rgba(255, 255, 255, 0.05); /* Subtle White/Grey Tint */
+        background-color: rgba(255, 255, 255, 0.05);
         border: 1px solid rgba(255, 255, 255, 0.1);
         border-radius: 12px;
     }
     
-    /* 5. Input Box - Matches Theme */
+    /* Thinking Animation Style */
+    .thinking {
+        font-style: italic;
+        color: #888;
+        animation: pulse 1.5s infinite;
+    }
+    
+    @keyframes pulse {
+        0% { opacity: 0.5; }
+        50% { opacity: 1; }
+        100% { opacity: 0.5; }
+    }
+    
+    /* Input Box */
     .stChatInput textarea {
         border-radius: 10px;
         border: 1px solid rgba(255, 255, 255, 0.2);
     }
     
-    /* 6. Buttons - Professional & Minimal */
+    /* Buttons */
     .stButton button {
         border-radius: 8px;
         font-weight: 500;
-        border: 1px solid rgba(255, 255, 255, 0.1);
         transition: all 0.2s;
-    }
-    .stButton button:hover {
-        border-color: #4A90E2; /* Blue hover glow */
-        color: #4A90E2;
-    }
-    
-    /* Remove default top padding */
-    .block-container {
-        padding-top: 2rem;
     }
     
     /* Hide Footer */
     footer {visibility: hidden;}
+    .block-container {padding-top: 2rem;}
 </style>
 """, unsafe_allow_html=True)
 
@@ -80,37 +83,42 @@ except:
     st.error("⚠️ GROQ_API_KEY missing. Please check your secrets.toml.")
     st.stop()
 
-# --- 5. SIDEBAR ---
+# --- 5. SIDEBAR CONTROLS ---
 with st.sidebar:
     st.title("🧠 AI Workspace")
     
-    st.caption("PROJECTS")
-    st.button("📄 Document Analysis", use_container_width=True)
-    st.button("📊 Market Research", use_container_width=True)
-    st.button("💻 Code Assistant", use_container_width=True)
+    st.caption("MODEL SETTINGS")
+    text_model = st.selectbox(
+        "Text Model",
+        ["llama-3.1-8b-instant", "llama-3.3-70b-versatile", "mixtral-8x7b-32768"],
+        index=0
+    )
+    
+    vision_model = st.selectbox(
+        "Vision Model",
+        ["llama-3.2-11b-vision-preview", "llama-3.2-90b-vision-preview"],
+        index=1
+    )
     
     st.markdown("---")
-    st.caption("SETTINGS")
+    st.caption("INTERFACE")
+    # Set default to 45ms as requested
+    typing_speed = st.slider("Response Speed (ms)", 10, 100, 45)
     
-    # Speed Control
-    typing_speed = st.slider("Response Speed (ms)", 5, 50, 20)
-    
-    # Clear Chat Button (Primary color used for emphasis)
     if st.button("🗑️ Reset Conversation", type="primary", use_container_width=True):
         st.session_state.messages = []
         st.rerun()
 
-# --- 6. MAIN CHAT INTERFACE ---
+# --- 6. MAIN CHAT LOGIC ---
 
-# Initialize History
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
 # Header
-st.markdown("### 👋 Welcome Back")
-st.markdown("I am your professional AI assistant. Attach images or type below to begin.")
+st.markdown("### 👋 Intelligent Assistant")
+st.markdown(f"Using **{vision_model if 'messages' in st.session_state and len(st.session_state.messages) > 0 and 'image_url' in str(st.session_state.messages) else text_model}** logic.")
 
-# Display Chat History
+# Display History
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         if "image_url" in msg:
@@ -118,18 +126,14 @@ for msg in st.session_state.messages:
         st.markdown(msg["content"])
 
 # --- INPUT AREA ---
+with st.expander("📎 Attach Image"):
+    uploaded_file = st.file_uploader("Analyze an image", type=['jpg', 'png', 'jpeg'])
 
-# Image Uploader (Clean expander)
-with st.expander("📎 Attach Image (Optional)"):
-    uploaded_file = st.file_uploader("Upload an image for analysis", type=['jpg', 'png', 'jpeg'])
-
-# Chat Input
-if prompt := st.chat_input("Type your message here..."):
+if prompt := st.chat_input("Type your message..."):
     
     # 1. Handle User Input
     user_content = [{"type": "text", "text": prompt}]
     
-    # Prepare visual display
     if uploaded_file:
         base64_image = get_base64_image(uploaded_file)
         user_content.append({
@@ -137,11 +141,9 @@ if prompt := st.chat_input("Type your message here..."):
             "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}
         })
         st.session_state.messages.append({"role": "user", "content": prompt + " [Image Attached]"})
-        
-        # Immediate Feedback
         with st.chat_message("user"):
             st.markdown(prompt)
-            st.image(uploaded_file, width=250) # Smaller, cleaner preview
+            st.image(uploaded_file, width=250)
     else:
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
@@ -149,15 +151,19 @@ if prompt := st.chat_input("Type your message here..."):
 
     # 2. Generate Response
     with st.chat_message("assistant"):
+        # A. Thinking Animation
         response_placeholder = st.empty()
+        response_placeholder.markdown("<span class='thinking'>Thinking...</span>", unsafe_allow_html=True)
+        
+        # Artificial delay to make the 'Thinking' visible and feel natural (optional)
+        time.sleep(0.5) 
+        
         full_response = ""
+        active_model = vision_model if uploaded_file else text_model
         
-        # Select Model (Vision or Text)
-        model_choice = "llama-3.2-11b-vision-preview" if uploaded_file else "llama-3.1-8b-instant"
-        
-        # Build API Messages (Text History Only to save tokens/errors)
+        # Build API Messages
         api_messages = [
-            {"role": "system", "content": "You are a precise, professional AI assistant."}
+            {"role": "system", "content": "You are a helpful, professional AI assistant."}
         ]
         for m in st.session_state.messages[-5:]:
             if "image_url" not in m:
@@ -167,16 +173,17 @@ if prompt := st.chat_input("Type your message here..."):
 
         try:
             stream = client.chat.completions.create(
-                model=model_choice,
+                model=active_model,
                 messages=api_messages,
                 stream=True
             )
             
-            # Streaming Loop
+            # B. Stream Parsing with Speed Control
             for chunk in stream:
                 content = chunk.choices[0].delta.content
                 if content:
                     full_response += content
+                    # Overwrite the 'Thinking...' with the actual text
                     response_placeholder.markdown(full_response + "▌")
                     time.sleep(typing_speed / 1000)
             
@@ -184,4 +191,5 @@ if prompt := st.chat_input("Type your message here..."):
             st.session_state.messages.append({"role": "assistant", "content": full_response})
 
         except Exception as e:
-            st.error(f"Error: {e}")
+            response_placeholder.empty() # Clear thinking animation if error
+            st.error(f"❌ API Error: {str(e)}")
